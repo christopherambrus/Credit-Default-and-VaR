@@ -1,28 +1,28 @@
 import quandl
 import pandas as pd
 import nasdaqdatalink
+from sklearn.linear_model import LogisticRegression
 
 quandl.ApiConfig.api_key = 'WtSSjYZDFRsDuTXCMRsq'
 nasdaqdatalink.ApiConfig.api_key = 'WtSSjYZDFRsDuTXCMRsq'
 
-unemp = quandl.get('FRED/UNRATE')  # Unemployment Rate from FRED
+unemp = quandl.get('FRED/UNRATE')
 df_unemp = pd.DataFrame(unemp)
-
-# Fetch the Core US Fundamentals data for all companies for a specific date
-# and paginate if the dataset is large
-coreUS = nasdaqdatalink.get_table('SHARADAR/SF1', calendardate='2011-12-31', paginate=True) 
+coreUS = nasdaqdatalink.get_table('SHARADAR/SF1', calendardate='2005-12-31', paginate=True)
 df_coreUS = pd.DataFrame(coreUS)
 
-# Print the column names to verify the correct column names
-print(df_coreUS.columns)
+df_coreUS['calendardate'] = pd.to_datetime(df_coreUS['calendardate'])
 
 df_coreUS['Current Ratio'] = df_coreUS['assetsc'] / df_coreUS['liabilitiesc']
+df_coreUS['Debt to Equity Ratio'] = df_coreUS['debt'] / df_coreUS['equity']
+df_coreUS['Net Profit Margin'] = df_coreUS['netinc'] / df_coreUS['revenue']
+df_coreUS['Return on Equity'] = df_coreUS['netinc'] / df_coreUS['equity']
 
-# Display the DataFrame with the calculated ratios
-print(df_coreUS[['ticker', 'Current Ratio']].head())  # Add other ratios as needed
+df_coreUS_annual = df_coreUS.groupby(['ticker', pd.Grouper(key='calendardate', freq='A')]).agg({
+    'Current Ratio': 'mean',
+    'Debt to Equity Ratio': 'mean',
+    'Net Profit Margin': 'mean',
+    'Return on Equity': 'mean'
+}).reset_index()
 
-# Display the first few rows of the unemployment DataFrame
-print(df_unemp.head())
-
-# Display the full Core US Fundamentals DataFrame
-#print(df_coreUS)
+print(df_coreUS_annual)
