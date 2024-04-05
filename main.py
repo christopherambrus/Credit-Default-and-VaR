@@ -1,6 +1,14 @@
 import pandas as pd
 import numpy as np
 import nasdaqdatalink
+from sklearn.impute import SimpleImputer
+from sklearn.pipeline import make_pipeline
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import roc_curve, auc
+import matplotlib.pyplot as plt
 from risk_calculator import RiskCalculator
 
 nasdaqdatalink.ApiConfig.api_key = 'WtSSjYZDFRsDuTXCMRsq'
@@ -77,3 +85,43 @@ print(df_coreUS_annual)
 number_of_defaults = df_coreUS_annual['Default'].sum()
 
 print(f"Number of Defaults: {number_of_defaults}")
+
+df_coreUS_annual.replace([np.inf, -np.inf], np.nan, inplace=True)
+
+numeric_cols = df_coreUS_annual.select_dtypes(include=[np.number]).columns
+
+imputer = SimpleImputer(missing_values=np.nan, strategy='mean')
+df_coreUS_annual[numeric_cols] = imputer.fit_transform(df_coreUS_annual[numeric_cols])
+
+X = df_coreUS_annual[['Current Ratio', 'Debt to Equity Ratio', 'Net Profit Margin', 'Return on Equity', 
+                      'Interest Coverage Ratio', 'Quick Ratio', 'Cash Ratio', 'Operating Margin', 
+                      'Asset Turnover Ratio']]
+y = df_coreUS_annual['Default']
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+pipeline = make_pipeline(StandardScaler(), LogisticRegression())
+pipeline.fit(X_train, y_train)
+
+y_pred = pipeline.predict(X_test)
+y_pred_proba = pipeline.predict_proba(X_test)
+
+
+print(classification_report(y_test, y_pred))
+print(confusion_matrix(y_test, y_pred))
+print("Coefficients of the logistic regression model:")
+print(pipeline.named_steps['logisticregression'].coef_)
+
+fpr, tpr, thresholds = roc_curve(y_test, y_pred_proba[:, 1])
+roc_auc = auc(fpr, tpr)
+
+plt.figure()
+plt.plot(fpr, tpr, color='darkorange', lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
+plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver Operating Characteristic')
+plt.legend(loc="lower right")
+plt.show()
