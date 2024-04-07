@@ -4,6 +4,7 @@ import nasdaqdatalink
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import make_pipeline
 from sklearn.linear_model import LogisticRegression, LassoCV, RidgeCV
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 from sklearn.preprocessing import StandardScaler
@@ -241,3 +242,23 @@ coefficients_df = pd.DataFrame({
 })
 
 print(coefficients_df)
+
+#Random Forest
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+rf_classifier = RandomForestClassifier(n_estimators=100, random_state=47)
+
+rf_classifier.fit(X_train_scaled, y_train)
+
+y_pred = rf_classifier.predict(X_test_scaled)
+y_pred_proba = rf_classifier.predict_proba(X_test_scaled)[:, 1]  
+
+roc_auc = roc_auc_score(y_test, y_pred_proba)
+
+print(f"The ROC AUC score for the Random Forest model is: {roc_auc}")
+
+feature_importances = rf_classifier.feature_importances_
+
+#print(f"Feature importances: {feature_importances}")
