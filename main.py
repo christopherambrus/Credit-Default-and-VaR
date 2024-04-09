@@ -10,6 +10,10 @@ from sklearn.metrics import classification_report
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import roc_curve, auc, roc_auc_score
 import matplotlib.pyplot as plt
+from sklearn.svm import SVC
+from sklearn.neighbors import KNeighborsClassifier
+import statsmodels.api as sm
+import xgboost as xgb
 from risk_calculator import RiskCalculator
 
 nasdaqdatalink.ApiConfig.api_key = 'WtSSjYZDFRsDuTXCMRsq'
@@ -133,7 +137,7 @@ X = df_coreUS_annual[[
 ]]
 y = df_coreUS_annual['Default']
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=47)
 
 pipeline = make_pipeline(StandardScaler(), LogisticRegression())
 pipeline.fit(X_train, y_train)
@@ -159,8 +163,6 @@ plt.title('Receiver Operating Characteristic')
 plt.legend(loc="lower right")
 plt.show()
 
-import statsmodels.api as sm
-
 X_train_with_const = sm.add_constant(X_train)
 logit_model = sm.Logit(y_train, X_train_with_const).fit()
 
@@ -173,7 +175,7 @@ X2 = df_coreUS_annual[[
     'Asset Turnover Ratio', 'Price to Earnings Ratio', 'Price to Sales Ratio'
 ]]
 
-X2_train, X2_test, y_train, y_test = train_test_split(X2, y, test_size=0.2, random_state=42)
+X2_train, X2_test, y_train, y_test = train_test_split(X2, y, test_size=0.2, random_state=47)
 pipeline.fit(X2_train, y_train)
 
 y_pred = pipeline.predict(X2_test)
@@ -188,12 +190,12 @@ print(backward_logit_model.summary())
 
 predictors = backward_logit_model.params.index
 X2_test_with_const = sm.add_constant(X2_test)
-y_pred_proba_best = backward_logit_model.predict(X2_test_with_const)
+y_pred_prob_best = backward_logit_model.predict(X2_test_with_const)
 
-fpr_best, tpr_best, thresholds_best = roc_curve(y_test, y_pred_proba_best)
+fpr_best, tpr_best, thresholds_best = roc_curve(y_test, y_pred_prob_best)
 roc_auc_best = auc(fpr_best, tpr_best)
 
-print(f"The AUC of the best model is: {roc_auc_best}")
+print(f"The AUC of the backwards stepwise logistic model is: {roc_auc_best}")
 
 plt.figure()
 plt.plot(fpr_best, tpr_best, color='darkorange', lw=2, label='ROC curve (area = %0.2f)' % roc_auc_best)
@@ -211,7 +213,7 @@ X3 = df_coreUS_annual[[
 ]]
 
 #L1 and L2 regularizations
-X3_train, X3_test, y_train, y_test = train_test_split(X3, y, test_size=0.2, random_state=42)
+X3_train, X3_test, y_train, y_test = train_test_split(X3, y, test_size=0.2, random_state=47)
 pipeline.fit(X2_train, y_train)
 scaler = StandardScaler()
 X3_train_scaled = scaler.fit_transform(X3_train)
@@ -262,3 +264,27 @@ print(f"The ROC AUC score for the Random Forest model is: {roc_auc}")
 feature_importances = rf_classifier.feature_importances_
 
 #print(f"Feature importances: {feature_importances}")
+
+#SVM
+svm_classifier = SVC(probability=True, random_state=47)
+svm_classifier.fit(X_train_scaled, y_train)
+y_pred_proba = svm_classifier.predict_proba(X_test_scaled)[:, 1]  
+roc_auc = roc_auc_score(y_test, y_pred_proba)
+
+print(f"The ROC AUC score for the SVM model is: {roc_auc}")
+
+#K-Nearest Neighbors
+knn_classifier = KNeighborsClassifier(n_neighbors=5) 
+knn_classifier.fit(X_train_scaled, y_train)
+y_pred_proba = knn_classifier.predict_proba(X_test_scaled)[:, 1] 
+roc_auc = roc_auc_score(y_test, y_pred_proba)
+
+print(f"The ROC AUC score for the KNN model is: {roc_auc}")
+
+#XGBoost
+xgb_classifier = xgb.XGBClassifier(objective='binary:logistic', random_state=47)
+xgb_classifier.fit(X_train_scaled, y_train)
+y_pred_proba = xgb_classifier.predict_proba(X_test_scaled)[:, 1]  
+roc_auc = roc_auc_score(y_test, y_pred_proba)
+
+print(f"The ROC AUC score for the XGBoost model is: {roc_auc}")
